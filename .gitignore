@@ -6,7 +6,9 @@ node_modules/
 # Expo
 .expo/
 dist/
+dist-android/
 web-build/
+.idea/
 expo-env.d.ts
 
 # Native
