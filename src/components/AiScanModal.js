@@ -26,10 +26,12 @@ export default function AiScanModal({ onDetected }) {
   const [scanAnim] = useState(new Animated.Value(0));
 
   const sampleSpecies = [
-    { ...INITIAL_PLANTS[0], conf: 94.8 }, // Tulsi
-    { ...INITIAL_PLANTS[2], conf: 91.5 }, // Neem
-    { ...INITIAL_PLANTS[1], conf: 89.2 }, // Aloe Vera
-    { ...INITIAL_PLANTS[6], conf: 92.4 }, // Ashwagandha
+    { ...INITIAL_PLANTS[0], conf: 96.4, family: 'Lamiaceae' }, // Tulsi
+    { ...INITIAL_PLANTS[2], conf: 93.8, family: 'Meliaceae' }, // Neem
+    { ...INITIAL_PLANTS[3], conf: 95.1, family: 'Zingiberaceae' }, // Turmeric
+    { ...INITIAL_PLANTS[6], conf: 92.4, family: 'Solanaceae' }, // Ashwagandha
+    { ...INITIAL_PLANTS[1], conf: 89.2, family: 'Asphodelaceae' }, // Aloe Vera
+    { ...INITIAL_PLANTS[5], conf: 94.0, family: 'Lamiaceae' }, // Mint
   ];
 
   const currentSample = sampleSpecies[selectedSampleIndex];
@@ -207,8 +209,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.65)',
     justifyContent: 'flex-end',
+    alignItems: 'center',
   },
   modalCard: {
+    width: '100%',
+    maxWidth: 440,
     backgroundColor: COLORS.white,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,

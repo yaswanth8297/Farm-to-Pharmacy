@@ -8,6 +8,7 @@ import MessageModal from './src/components/MessageModal';
 import Toast from './src/components/Toast';
 
 // Screens
+import LoginScreen from './src/screens/LoginScreen';
 import SplashScreen from './src/screens/SplashScreen';
 import FarmerHomeScreen from './src/screens/farmer/FarmerHomeScreen';
 import FarmerUploadScreen from './src/screens/farmer/FarmerUploadScreen';
@@ -26,9 +27,19 @@ import BuyerMyOrdersScreen from './src/screens/buyer/BuyerMyOrdersScreen';
 import BuyerProfileScreen from './src/screens/buyer/BuyerProfileScreen';
 
 function MainNavigator() {
-  const { role, currentScreen } = useApp();
+  const { user, authReady, role, currentScreen } = useApp();
 
-  // If no role chosen, show splash & role selection
+  // Wait for persisted session check
+  if (!authReady) {
+    return <View style={{ flex: 1, backgroundColor: COLORS.background }} />;
+  }
+
+  // If not signed in, show Login screen
+  if (!user) {
+    return <LoginScreen />;
+  }
+
+  // If signed in without role (fallback)
   if (!role) {
     return <SplashScreen />;
   }
@@ -83,10 +94,11 @@ function MainNavigator() {
 }
 
 function AppContent() {
-  const { role, currentScreen } = useApp();
+  const { user, role, currentScreen } = useApp();
 
-  // Hide bottom tab bar on certain screens (splash, plant detail, order placed)
+  // Hide bottom tab bar when not logged in or on certain workflow screens
   const hideTabBar =
+    !user ||
     !role ||
     currentScreen === 'detail' ||
     currentScreen === 'orderPlaced' ||

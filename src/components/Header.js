@@ -13,13 +13,18 @@ export default function Header({
   rightActionText,
   onRightAction,
 }) {
-  const { role, currentScreen, setCurrentScreen, unreadCount } = useApp();
+  const { user, role, currentScreen, setCurrentScreen, unreadCount } = useApp();
 
   const isFarmer = role === 'farmer';
 
-  // Default greetings if no custom title provided
-  const headerSubtitle = subtitle || (isFarmer ? 'Farmer · Verified ✓' : 'Pharmacy Technician');
-  const headerTitle = title || (isFarmer ? 'Namaste, Ramesh 🙏' : 'Good Morning, Dr. Priya 👋');
+  // Dynamic greeting using signed-in user's name
+  const firstName = (user?.name || '').replace(/^Dr\.\s*/, '').split(' ')[0];
+  const headerSubtitle = subtitle || (isFarmer ? `${user?.location || 'Pune, MH'} · Verified Organic` : `${user?.organization || 'Pharmacy Tech'}`);
+  const headerTitle =
+    title ||
+    (isFarmer
+      ? `Namaste, ${firstName || 'Ramesh'} 🙏`
+      : `Good Morning, Dr. ${firstName || 'Priya'} 👋`);
 
   return (
     <View style={styles.headerRoot}>

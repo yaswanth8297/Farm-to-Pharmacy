@@ -14,6 +14,8 @@ import AndroidStatusBar from '../../components/AndroidStatusBar';
 
 export default function FarmerProfileScreen() {
   const {
+    user,
+    logout,
     setCurrentScreen,
     setRole,
     farmerListings,
@@ -89,14 +91,14 @@ export default function FarmerProfileScreen() {
           </View>
 
           <View style={styles.profileDetails}>
-            <Text style={styles.farmerName}>Ramesh Kumar</Text>
-            <Text style={styles.farmerRole}>🌿 Certified Organic Farmer</Text>
+            <Text style={styles.farmerName}>{user?.name || 'Ramesh Kumar'}</Text>
+            <Text style={styles.farmerRole}>🌿 Certified Organic Farmer · {user?.experience || 'AYUSH Verified'}</Text>
 
             <View style={styles.badgeRow}>
               <View style={styles.verifiedBadge}>
                 <Text style={styles.verifiedText}>✓ Verified</Text>
               </View>
-              <Text style={styles.locationText}>Pune, Maharashtra</Text>
+              <Text style={styles.locationText}>{user?.location || 'Pune, Maharashtra'}</Text>
             </View>
           </View>
         </View>
@@ -164,9 +166,11 @@ export default function FarmerProfileScreen() {
           <TouchableOpacity
             style={styles.logoutBtn}
             onPress={() => {
-              setRole(null);
+              logout();
             }}
             activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Log out"
           >
             <Text style={styles.logoutText}>Log Out</Text>
           </TouchableOpacity>

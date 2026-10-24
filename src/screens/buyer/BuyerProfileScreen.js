@@ -14,6 +14,8 @@ import AndroidStatusBar from '../../components/AndroidStatusBar';
 
 export default function BuyerProfileScreen() {
   const {
+    user,
+    logout,
     setCurrentScreen,
     setRole,
     buyerOrders,
@@ -90,14 +92,14 @@ export default function BuyerProfileScreen() {
           </View>
 
           <View style={styles.profileDetails}>
-            <Text style={styles.buyerName}>Dr. Priya Sharma</Text>
-            <Text style={styles.buyerRole}>💊 Licensed Pharmacy Technician</Text>
+            <Text style={styles.buyerName}>{user?.name || 'Dr. Priya Sharma'}</Text>
+            <Text style={styles.buyerRole}>💊 {user?.organization || 'Licensed Pharmacy Technician'}</Text>
 
             <View style={styles.badgeRow}>
               <View style={styles.verifiedBadge}>
                 <Text style={styles.verifiedText}>✓ Verified</Text>
               </View>
-              <Text style={styles.locationText}>Mumbai, Maharashtra</Text>
+              <Text style={styles.locationText}>{user?.location || 'Mumbai, Maharashtra'}</Text>
             </View>
           </View>
         </View>
@@ -165,9 +167,11 @@ export default function BuyerProfileScreen() {
           <TouchableOpacity
             style={styles.logoutBtn}
             onPress={() => {
-              setRole(null);
+              logout();
             }}
             activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Log out"
           >
             <Text style={styles.logoutText}>Log Out</Text>
           </TouchableOpacity>

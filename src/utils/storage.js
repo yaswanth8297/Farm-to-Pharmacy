@@ -9,6 +9,8 @@ const STORAGE_KEYS = {
   REWARDS_POINTS: '@farmtopharmacy:rewards_points',
   REDEEMED_VOUCHERS: '@farmtopharmacy:redeemed_vouchers',
   CURRENT_ROLE: '@farmtopharmacy:current_role',
+  SESSION: '@farmtopharmacy:session',
+  PLANTS: '@farmtopharmacy:plants',
 };
 
 export const StorageService = {
@@ -63,6 +65,14 @@ export const StorageService = {
     } catch (e) {
       console.warn('StorageService.getItem error', e);
       return defaultValue;
+    }
+  },
+
+  async removeItem(key) {
+    try {
+      await AsyncStorage.removeItem(key);
+    } catch (e) {
+      console.warn('StorageService.removeItem error', e);
     }
   },
 

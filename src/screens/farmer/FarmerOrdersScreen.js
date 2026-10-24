@@ -13,7 +13,13 @@ import Header from '../../components/Header';
 import AndroidStatusBar from '../../components/AndroidStatusBar';
 
 export default function FarmerOrdersScreen() {
-  const { farmerOrders, setCurrentScreen, openChatWith, showToast } = useApp();
+  const {
+    farmerOrders,
+    updateFarmerOrderStatus,
+    setCurrentScreen,
+    openChatWith,
+    showToast,
+  } = useApp();
 
   const getStatusStyle = (status) => {
     switch (status?.toLowerCase()) {
@@ -81,9 +87,11 @@ export default function FarmerOrdersScreen() {
                     <TouchableOpacity
                       style={styles.dispatchBtn}
                       onPress={() => {
-                        showToast(`✓ Order ${order.orderNumber} marked Dispatched`);
+                        updateFarmerOrderStatus(order.id, 'Dispatched');
                       }}
                       activeOpacity={0.8}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Mark order ${order.orderNumber} as Dispatched`}
                     >
                       <Ionicons name="paper-plane" size={13} color={COLORS.white} />
                       <Text style={styles.dispatchBtnText}>Mark Dispatched</Text>

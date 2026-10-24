@@ -15,45 +15,25 @@ import { COLORS } from '../constants/theme';
 import { useApp } from '../context/AppContext';
 
 export default function MessageModal() {
-  const { messageModalVisible, setMessageModalVisible, activeChatRecipient, showToast } =
-    useApp();
+  const {
+    messageModalVisible,
+    setMessageModalVisible,
+    activeChatRecipient,
+    chatMessages,
+    sendChatMessage,
+    showToast,
+  } = useApp();
 
   const recipientName = activeChatRecipient?.name || 'Ramesh Kumar (Farmer)';
-
-  const [messages, setMessages] = useState([
-    {
-      id: 'm1',
-      sender: 'them',
-      text: 'Namaste Dr. Priya! The Tulsi batch was harvested this morning at 6:30 AM.',
-      time: '10:14 AM',
-    },
-    {
-      id: 'm2',
-      sender: 'me',
-      text: 'Great! Can you confirm moisture content is under 9% for our Ayur formulations?',
-      time: '10:16 AM',
-    },
-    {
-      id: 'm3',
-      sender: 'them',
-      text: 'Yes, moisture test reading is 8.2%. The dynamic QR code is attached to the bags.',
-      time: '10:18 AM',
-    },
-  ]);
+  const threadKey = activeChatRecipient?.id || activeChatRecipient?.name || 'default';
+  const messages = chatMessages[threadKey] || chatMessages['default'] || [];
 
   const [inputText, setInputText] = useState('');
 
   const handleSend = () => {
     if (!inputText.trim()) return;
-    const newMsg = {
-      id: `m_${Date.now()}`,
-      sender: 'me',
-      text: inputText.trim(),
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    };
-    setMessages([...messages, newMsg]);
+    sendChatMessage(inputText, threadKey);
     setInputText('');
-    showToast('Message sent to grower');
   };
 
   return (
@@ -142,8 +122,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
+    alignItems: 'center',
   },
   modalCard: {
+    width: '100%',
+    maxWidth: 440,
     backgroundColor: COLORS.white,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,

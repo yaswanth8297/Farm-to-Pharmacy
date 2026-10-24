@@ -168,21 +168,33 @@ export default function BuyerPlantDetailScreen() {
               <TouchableOpacity
                 style={styles.stepBtn}
                 onPress={() => setQuantity(Math.max(1, quantity - 1))}
+                accessibilityRole="button"
+                accessibilityLabel="Decrease quantity"
               >
                 <Ionicons name="remove" size={16} color={COLORS.textPrimary} />
               </TouchableOpacity>
               <Text style={styles.stepCount}>{quantity}</Text>
               <TouchableOpacity
-                style={[styles.stepBtn, styles.stepBtnAdd]}
-                onPress={() => setQuantity(quantity + 1)}
+                style={[
+                  styles.stepBtn,
+                  styles.stepBtnAdd,
+                  quantity >= (plant.stock || 50) && { backgroundColor: COLORS.textMuted },
+                ]}
+                onPress={() => setQuantity(Math.min(plant.stock || 50, quantity + 1))}
+                disabled={quantity >= (plant.stock || 50)}
+                accessibilityRole="button"
+                accessibilityLabel="Increase quantity"
               >
                 <Ionicons name="add" size={16} color={COLORS.white} />
               </TouchableOpacity>
             </View>
 
             <View style={{ alignItems: 'flex-end' }}>
-              <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalValue}>₹{totalPrice}</Text>
+              <Text style={styles.totalLabel}>Total ({quantity} kg)</Text>
+              <Text style={styles.totalValue}>₹{totalPrice.toLocaleString('en-IN')}</Text>
+              <Text style={{ fontSize: 10, color: plant.stock > 0 ? '#15803D' : '#DC2626', fontWeight: '700', marginTop: 2 }}>
+                {plant.stock > 0 ? `${plant.stock} kg available` : 'Out of Stock'}
+              </Text>
             </View>
           </View>
         </View>
@@ -191,16 +203,25 @@ export default function BuyerPlantDetailScreen() {
       {/* Bottom Sticky Action Button */}
       <View style={styles.bottomBar}>
         <TouchableOpacity
-          style={styles.addToCartBtn}
+          style={[
+            styles.addToCartBtn,
+            (plant.stock <= 0) && { backgroundColor: COLORS.textMuted },
+          ]}
           onPress={() => {
+            if (plant.stock <= 0) return;
             addToCart(plant, quantity);
             setCurrentScreen('cart');
           }}
+          disabled={plant.stock <= 0}
           activeOpacity={0.88}
+          accessibilityRole="button"
+          accessibilityLabel={plant.stock <= 0 ? "Out of Stock" : "Add to Cart"}
         >
           <Ionicons name="cart-outline" size={18} color={COLORS.white} />
           <Text style={styles.addToCartText}>
-            Add to Cart · ₹{totalPrice}
+            {plant.stock <= 0
+              ? 'Out of Stock'
+              : `Add to Cart · ₹${totalPrice.toLocaleString('en-IN')}`}
           </Text>
         </TouchableOpacity>
       </View>

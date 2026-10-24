@@ -7,11 +7,16 @@ import {
   INITIAL_NOTIFICATIONS,
 } from '../constants/plantData';
 import { StorageService } from '../utils/storage';
+import { DEMO_ACCOUNTS } from '../constants/demoAccounts';
 
 const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
-  // Roles: null (Splash), 'farmer', 'buyer'
+  // Authentication & Session
+  const [user, setUser] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
+
+  // Roles: null (Splash / unauthenticated), 'farmer', 'buyer'
   const [role, setRole] = useState(null);
 
   // Screen navigation
@@ -22,20 +27,17 @@ export const AppProvider = ({ children }) => {
   // Selected plant for detail viewing
   const [selectedPlant, setSelectedPlant] = useState(INITIAL_PLANTS[0]);
 
-  // Master Plants Catalog
+  // Master Plants Catalog (persisted)
   const [plants, setPlants] = useState(INITIAL_PLANTS);
 
-  // Farmer State
+  // Farmer State (persisted)
   const [farmerListings, setFarmerListings] = useState(INITIAL_FARMER_LISTINGS);
   const [farmerOrders, setFarmerOrders] = useState(INITIAL_FARMER_ORDERS);
   const [rewardPoints, setRewardPoints] = useState(1240);
   const [redeemedVouchers, setRedeemedVouchers] = useState([]);
 
-  // Buyer State
-  const [cart, setCart] = useState([
-    { plant: INITIAL_PLANTS[0], quantity: 3 }, // Tulsi 3kg
-    { plant: INITIAL_PLANTS[3], quantity: 2 }, // Turmeric 2kg
-  ]);
+  // Buyer State (persisted)
+  const [cart, setCart] = useState([]);
   const [buyerOrders, setBuyerOrders] = useState(INITIAL_BUYER_ORDERS);
   const [lastPlacedOrder, setLastPlacedOrder] = useState(null);
 
@@ -50,6 +52,30 @@ export const AppProvider = ({ children }) => {
   const [messageModalVisible, setMessageModalVisible] = useState(false);
   const [activeChatRecipient, setActiveChatRecipient] = useState(null);
 
+  // Chat message store: map of recipientName -> array of messages
+  const [chatMessages, setChatMessages] = useState({
+    default: [
+      {
+        id: 'm1',
+        sender: 'them',
+        text: 'Namaste! The fresh harvest batch was picked this morning at 6:30 AM.',
+        time: '10:14 AM',
+      },
+      {
+        id: 'm2',
+        sender: 'me',
+        text: 'Can you confirm moisture content is under 9% for AYUSH certification?',
+        time: '10:16 AM',
+      },
+      {
+        id: 'm3',
+        sender: 'them',
+        text: 'Yes, moisture test reading is 8.2%. The verified QR batch code is attached to every sack.',
+        time: '10:18 AM',
+      },
+    ],
+  });
+
   // Toast feedback
   const [toastMessage, setToastMessage] = useState(null);
 
@@ -60,17 +86,93 @@ export const AppProvider = ({ children }) => {
     }, 3200);
   };
 
-  // Load persisted drafts and state on mount
+  // Restore session and persisted state on app start
   useEffect(() => {
     (async () => {
-      const drafts = await StorageService.getDrafts();
-      if (drafts && drafts.length > 0) {
-        setOfflineDrafts(drafts);
+      try {
+        // 1. Session restoration
+        const savedSession = await StorageService.getItem(StorageService.STORAGE_KEYS.SESSION, null);
+        if (savedSession && savedSession.role) {
+          setUser(savedSession);
+          setRole(savedSession.role);
+        }
+
+        // 2. Drafts & points
+        const drafts = await StorageService.getDrafts();
+        if (drafts && drafts.length > 0) {
+          setOfflineDrafts(drafts);
+        }
+
+        const savedPoints = await StorageService.getItem(StorageService.STORAGE_KEYS.REWARDS_POINTS, null);
+        if (savedPoints !== null) {
+          setRewardPoints(savedPoints);
+        }
+
+        // 3. Persisted cart
+        const savedCart = await StorageService.getItem(StorageService.STORAGE_KEYS.CART, null);
+        if (savedCart) {
+          setCart(savedCart);
+        }
+
+        // 4. Persisted listings & plants
+        const savedListings = await StorageService.getItem(StorageService.STORAGE_KEYS.LISTINGS, null);
+        if (savedListings) {
+          setFarmerListings(savedListings);
+        }
+
+        const savedPlants = await StorageService.getItem(StorageService.STORAGE_KEYS.PLANTS, null);
+        if (savedPlants) {
+          setPlants(savedPlants);
+        }
+
+        // 5. Persisted orders
+        const savedBuyerOrders = await StorageService.getItem(StorageService.STORAGE_KEYS.ORDERS_BUYER, null);
+        if (savedBuyerOrders) {
+          setBuyerOrders(savedBuyerOrders);
+        }
+
+        const savedFarmerOrders = await StorageService.getItem(StorageService.STORAGE_KEYS.ORDERS_FARMER, null);
+        if (savedFarmerOrders) {
+          setFarmerOrders(savedFarmerOrders);
+        }
+      } catch (err) {
+        console.warn('Error hydrating persisted app state:', err);
+      } finally {
+        setAuthReady(true);
       }
-      const savedPoints = await StorageService.getItem(StorageService.STORAGE_KEYS.REWARDS_POINTS, 1240);
-      setRewardPoints(savedPoints);
     })();
   }, []);
+
+  // Login handler
+  const login = async (email, password) => {
+    await new Promise((resolve) => setTimeout(resolve, 500)); // Mimic API network latency
+    const normalizedEmail = String(email).trim().toLowerCase();
+
+    const account = DEMO_ACCOUNTS.find(
+      (a) => a.email.toLowerCase() === normalizedEmail && a.password === password
+    );
+
+    if (!account) {
+      return { ok: false, error: 'Incorrect email or password' };
+    }
+
+    const { password: _omit, ...safeUser } = account;
+    setUser(safeUser);
+    setRole(safeUser.role);
+    setCurrentScreen('home');
+    await StorageService.setItem(StorageService.STORAGE_KEYS.SESSION, safeUser);
+    showToast(`Welcome, ${safeUser.name}`);
+    return { ok: true };
+  };
+
+  // Logout handler
+  const logout = async () => {
+    setUser(null);
+    setRole(null);
+    setCurrentScreen('home');
+    await StorageService.removeItem(StorageService.STORAGE_KEYS.SESSION);
+    showToast('Signed out successfully');
+  };
 
   // Save drafts into AsyncStorage
   const saveOfflineDraft = async (draft) => {
@@ -89,17 +191,25 @@ export const AppProvider = ({ children }) => {
     setOfflineDrafts(updated);
   };
 
-  // Farmer listing creation
+  // Farmer listing creation (uses user profile & rule-based rewards)
   const addFarmerListing = (newListing) => {
-    const pointsAwarded = Math.floor(Math.random() * 60) + 35; // 35 - 95 points
-    const earnedVal = Number(newListing.quantity) * Number(newListing.pricePerKg);
+    const qty = Number(newListing.quantity) || 1;
+    const price = Number(newListing.pricePerKg) || 100;
+    const earnedVal = qty * price;
+
+    // Rule-based rewards: 1 point per ₹20 listing value (minimum 40 points)
+    const pointsAwarded = Math.max(40, Math.round(earnedVal / 20));
+
+    const farmerName = user?.name || 'Ramesh Kumar';
+    const farmerLocation = user?.location || 'Pune, Maharashtra';
+
     const item = {
       id: `list_${Date.now()}`,
       plantId: newListing.plantId || 'plant_custom',
       name: newListing.name,
-      quantity: Number(newListing.quantity),
+      quantity: qty,
       unit: 'kg',
-      pricePerKg: Number(newListing.pricePerKg),
+      pricePerKg: price,
       earned: earnedVal,
       points: pointsAwarded,
       timeText: 'Just now',
@@ -108,11 +218,14 @@ export const AppProvider = ({ children }) => {
       batchCode: `BATCH-${newListing.name.substring(0, 3).toUpperCase()}-2026-${Math.floor(Math.random() * 900) + 100}`,
       harvestDate: newListing.harvestDate || new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
       batchHash: Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join(''),
-      farmerName: 'Ramesh Kumar',
-      farmerLocation: 'Pune, Maharashtra',
+      farmerName,
+      farmerLocation,
     };
 
-    setFarmerListings([item, ...farmerListings]);
+    const updatedListings = [item, ...farmerListings];
+    setFarmerListings(updatedListings);
+    StorageService.setItem(StorageService.STORAGE_KEYS.LISTINGS, updatedListings);
+
     const updatedPoints = rewardPoints + pointsAwarded;
     setRewardPoints(updatedPoints);
     StorageService.setItem(StorageService.STORAGE_KEYS.REWARDS_POINTS, updatedPoints);
@@ -126,33 +239,36 @@ export const AppProvider = ({ children }) => {
       category: newListing.category || 'Immunity',
       tag: 'Fresh Harvest',
       badge: 'Organic',
-      price: Number(newListing.pricePerKg),
+      price: price,
       unit: 'kg',
-      stock: Number(newListing.quantity),
+      stock: qty,
       rating: 5.0,
       reviewsCount: 1,
-      farmerId: 'farmer_1',
-      farmerName: 'Ramesh Kumar',
-      farmerLocation: 'Pune, Maharashtra',
+      farmerId: user?.id || 'farmer_1',
+      farmerName,
+      farmerLocation,
       farmerCertified: true,
       harvestDate: item.harvestDate,
       batchCode: item.batchCode,
       batchHash: item.batchHash,
       labReport: 'Verified Organic by Krishi Kendra Inspector',
-      moistureContent: '8.5%',
-      activeCompounds: newListing.activeCompounds || ['Organic Polyphenols'],
+      moistureContent: '8.4%',
+      activeCompounds: newListing.activeCompounds || ['Organic Polyphenols', 'Botanical Bioactives'],
       medicinalBenefits: newListing.medicinalBenefits || 'Authentic traditional therapeutic herb',
-      benefitTags: ['Organic', 'Direct Farm'],
-      description: newListing.description || 'Harvested fresh under sustainable agrarian practices.',
+      benefitTags: ['Organic', 'Direct Farm', 'AYUSH Tested'],
+      description: newListing.description || 'Harvested fresh under certified sustainable agricultural practices.',
       image: item.image,
       heroImage: item.image,
     };
-    setPlants([newCatalogPlant, ...plants]);
+
+    const updatedPlants = [newCatalogPlant, ...plants];
+    setPlants(updatedPlants);
+    StorageService.setItem(StorageService.STORAGE_KEYS.PLANTS, updatedPlants);
 
     // Add notification
     addNotification({
       title: 'Listing Published!',
-      message: `${newListing.name} (${newListing.quantity} kg) is now live on the B2B marketplace. Earned +${pointsAwarded} pts!`,
+      message: `${newListing.name} (${qty} kg) is now live on the B2B marketplace. Earned +${pointsAwarded} pts!`,
       icon: 'leaf',
       type: 'listing',
     });
@@ -170,21 +286,33 @@ export const AppProvider = ({ children }) => {
     const newBal = rewardPoints - voucher.points;
     setRewardPoints(newBal);
     StorageService.setItem(StorageService.STORAGE_KEYS.REWARDS_POINTS, newBal);
-    setRedeemedVouchers([...redeemedVouchers, { ...voucher, redeemedAt: new Date().toLocaleDateString() }]);
+
+    const updatedRedeemed = [
+      ...redeemedVouchers,
+      { ...voucher, redeemedAt: new Date().toLocaleDateString() },
+    ];
+    setRedeemedVouchers(updatedRedeemed);
+    StorageService.setItem(StorageService.STORAGE_KEYS.REDEEMED_VOUCHERS, updatedRedeemed);
+
     showToast(`🎉 Redeemed ${voucher.title}! Saved ₹${voucher.discountValue || 'Free Delivery'}`);
     return true;
   };
 
-  // Cart operations
+  // Cart operations (with state bug fix & persistence)
   const addToCart = (plant, qty = 1) => {
     const existingIndex = cart.findIndex((item) => item.plant.id === plant.id);
+    let updated;
     if (existingIndex > -1) {
-      const updated = [...cart];
-      updated[existingIndex].quantity += qty;
-      setCart(updated);
+      updated = cart.map((item, idx) =>
+        idx === existingIndex
+          ? { ...item, quantity: item.quantity + qty }
+          : item
+      );
     } else {
-      setCart([...cart, { plant, quantity: qty }]);
+      updated = [...cart, { plant: { ...plant }, quantity: qty }];
     }
+    setCart(updated);
+    StorageService.setItem(StorageService.STORAGE_KEYS.CART, updated);
     showToast(`Added ${qty} kg ${plant.name} to Cart`);
   };
 
@@ -193,54 +321,118 @@ export const AppProvider = ({ children }) => {
       removeFromCart(plantId);
       return;
     }
-    setCart(cart.map((item) => (item.plant.id === plantId ? { ...item, quantity: newQty } : item)));
+    const updated = cart.map((item) =>
+      item.plant.id === plantId ? { ...item, quantity: newQty } : item
+    );
+    setCart(updated);
+    StorageService.setItem(StorageService.STORAGE_KEYS.CART, updated);
   };
 
   const removeFromCart = (plantId) => {
-    setCart(cart.filter((item) => item.plant.id !== plantId));
+    const updated = cart.filter((item) => item.plant.id !== plantId);
+    setCart(updated);
+    StorageService.setItem(StorageService.STORAGE_KEYS.CART, updated);
   };
 
-  const clearCart = () => setCart([]);
+  const clearCart = () => {
+    setCart([]);
+    StorageService.setItem(StorageService.STORAGE_KEYS.CART, []);
+  };
 
-  // Place Buyer Order
-  const placeOrder = () => {
+  // Place Buyer Order (with inventory deduction, stock check & multi-item splitting)
+  const placeOrder = (paymentMethod = 'UPI / Instant Bank Settlement') => {
     if (cart.length === 0) return null;
 
-    const totalAmt = cart.reduce((sum, item) => sum + item.plant.price * item.quantity, 0);
-    const orderNum = `#P${Math.floor(Math.random() * 800) + 1205}`;
-    const itemsDescription = cart.map((i) => `${i.plant.name} ${i.quantity}kg`).join(', ');
+    // 1. Check stock availability for all items
+    for (const item of cart) {
+      const livePlant = plants.find((p) => p.id === item.plant.id);
+      if (livePlant && livePlant.stock < item.quantity) {
+        showToast(`⚠️ Only ${livePlant.stock} kg available for ${livePlant.name}`);
+        return null;
+      }
+    }
 
+    // 2. Deduct stock from plants inventory
+    const updatedPlants = plants.map((plant) => {
+      const inCart = cart.find((item) => item.plant.id === plant.id);
+      if (inCart) {
+        return {
+          ...plant,
+          stock: Math.max(0, plant.stock - inCart.quantity),
+        };
+      }
+      return plant;
+    });
+    setPlants(updatedPlants);
+    StorageService.setItem(StorageService.STORAGE_KEYS.PLANTS, updatedPlants);
+
+    // 3. Calculate order total & numbers
+    const subtotalAmt = cart.reduce((sum, item) => sum + item.plant.price * item.quantity, 0);
+    const gstAmt = Math.round(subtotalAmt * 0.05);
+    const grandTotal = subtotalAmt + gstAmt;
+    const orderSeq = Date.now().toString().slice(-4);
+    const orderNum = `#ORD-2026-${orderSeq}`;
+    const txnId = `TXN-AYUSH-${Date.now().toString().slice(-8)}`;
+    const receiptNum = `REC-GST-${Date.now().toString().slice(-6)}`;
+    const itemsDescription = cart.map((i) => `${i.plant.name} (${i.quantity}kg)`).join(', ');
+
+    const buyerName = user?.name ? `${user.name} (${user.organization || 'Pharma Tech'})` : 'Dr. Priya Sharma (City Pharmacy)';
+    const primarySeller = cart[0]?.plant?.farmerName || 'Ramesh Kumar';
+
+    // 4. Create Buyer purchase order with verified payment record
     const newBuyerOrder = {
       id: orderNum.replace('#', ''),
       orderNumber: orderNum,
+      transactionId: txnId,
+      receiptNumber: receiptNum,
+      paymentStatus: 'Payment Successful',
       itemsText: itemsDescription,
-      sellerText: cart[0]?.plant?.farmerName || 'Ramesh Kumar',
+      sellerText: primarySeller,
       timeText: 'Just now',
       status: 'Processing',
-      totalPrice: totalAmt,
-      items: [...cart],
+      subtotal: subtotalAmt,
+      gst: gstAmt,
+      totalPrice: grandTotal,
+      paymentMethod,
+      deliveryOtp: Math.floor(1000 + Math.random() * 9000).toString(),
+      items: cart.map((item) => ({ ...item })),
+      createdAt: new Date().toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      }),
+      timestamp: new Date().toLocaleTimeString('en-IN', {
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
     };
 
-    setBuyerOrders([newBuyerOrder, ...buyerOrders]);
+    const updatedBuyerOrders = [newBuyerOrder, ...buyerOrders];
+    setBuyerOrders(updatedBuyerOrders);
+    StorageService.setItem(StorageService.STORAGE_KEYS.ORDERS_BUYER, updatedBuyerOrders);
 
-    // Also create corresponding farmer sales order
-    const farmerOrderNum = `#F${Math.floor(Math.random() * 800) + 2410}`;
-    const newFarmerOrder = {
-      id: farmerOrderNum.replace('#', ''),
-      orderNumber: farmerOrderNum,
-      plantName: cart[0]?.plant?.name || 'Medicinal Batch',
-      quantity: cart[0]?.quantity || 5,
-      buyerName: 'Dr. Priya Sharma (City Pharmacy)',
+    // 5. Multi-item splitting: Create a distinct farmer sales order for EACH cart item
+    const newFarmerOrdersList = cart.map((cartItem, idx) => ({
+      id: `FO-${orderSeq}-${idx + 1}`,
+      orderNumber: `#F-${orderSeq}-${idx + 1}`,
+      plantName: cartItem.plant.name,
+      quantity: cartItem.quantity,
+      pricePerKg: cartItem.plant.price,
+      buyerName,
       timeText: 'Just now',
       status: 'Processing',
-      totalPrice: totalAmt,
-    };
-    setFarmerOrders([newFarmerOrder, ...farmerOrders]);
+      totalPrice: cartItem.plant.price * cartItem.quantity,
+      batchCode: cartItem.plant.batchCode || `BATCH-${cartItem.plant.name.slice(0, 3).toUpperCase()}-2026`,
+    }));
 
-    // Notify both sides
+    const updatedFarmerOrders = [...newFarmerOrdersList, ...farmerOrders];
+    setFarmerOrders(updatedFarmerOrders);
+    StorageService.setItem(StorageService.STORAGE_KEYS.ORDERS_FARMER, updatedFarmerOrders);
+
+    // 6. Notify both parties
     addNotification({
-      title: 'Order Placed Successfully!',
-      message: `${orderNum} for ${cart.length} items (₹${totalAmt}) has been routed to growers.`,
+      title: 'Order Dispatched to Growers!',
+      message: `${orderNum} for ${cart.length} plant item(s) (₹${grandTotal.toLocaleString('en-IN')}) verified via smart contract.`,
       icon: 'checkmark-circle',
       type: 'order',
     });
@@ -250,9 +442,24 @@ export const AppProvider = ({ children }) => {
     return newBuyerOrder;
   };
 
+  // Farmer Order Dispatch Status Update
+  const updateFarmerOrderStatus = (orderId, newStatus) => {
+    const updated = farmerOrders.map((o) =>
+      o.id === orderId || o.orderNumber === orderId ? { ...o, status: newStatus } : o
+    );
+    setFarmerOrders(updated);
+    StorageService.setItem(StorageService.STORAGE_KEYS.ORDERS_FARMER, updated);
+    showToast(`✓ Order ${orderId} status set to ${newStatus}`);
+  };
+
   // Reorder
   const reorderPast = (order) => {
-    showToast(`✓ Reorder initiated for ${order.orderNumber}`);
+    if (order.items && order.items.length > 0) {
+      order.items.forEach((item) => addToCart(item.plant, item.quantity));
+      showToast(`✓ Re-added items from ${order.orderNumber} to cart`);
+    } else {
+      showToast(`✓ Reorder initiated for ${order.orderNumber}`);
+    }
     setCurrentScreen('cart');
   };
 
@@ -281,10 +488,58 @@ export const AppProvider = ({ children }) => {
     setProvenanceModalVisible(true);
   };
 
-  // In-app messaging
+  // In-app messaging & simulated auto-replies
   const openChatWith = (recipient) => {
     setActiveChatRecipient(recipient);
     setMessageModalVisible(true);
+  };
+
+  const sendChatMessage = (text, recipientKey = 'default') => {
+    if (!text.trim()) return;
+
+    const newMsg = {
+      id: `m_${Date.now()}`,
+      sender: 'me',
+      text: text.trim(),
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    const currentList = chatMessages[recipientKey] || chatMessages['default'] || [];
+    const updated = [...currentList, newMsg];
+
+    setChatMessages((prev) => ({
+      ...prev,
+      [recipientKey]: updated,
+      default: updated,
+    }));
+
+    showToast('Message sent');
+
+    // Contextual auto-reply simulation after 1.2s
+    setTimeout(() => {
+      const replies = [
+        'Understood! The moisture content has been verified under AYUSH standards.',
+        'Noted. The batch QR label has been sealed on the transit sacks.',
+        'Great, our regional dispatch partner has scheduled dock delivery for tomorrow.',
+      ];
+      const autoText = replies[Math.floor(Math.random() * replies.length)];
+
+      const autoReply = {
+        id: `m_reply_${Date.now()}`,
+        sender: 'them',
+        text: autoText,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+
+      setChatMessages((prev) => {
+        const list = prev[recipientKey] || prev['default'] || [];
+        return {
+          ...prev,
+          [recipientKey]: [...list, autoReply],
+          default: [...list, autoReply],
+        };
+      });
+    }, 1400);
   };
 
   // Unread notification count
@@ -293,6 +548,10 @@ export const AppProvider = ({ children }) => {
   return (
     <AppContext.Provider
       value={{
+        user,
+        authReady,
+        login,
+        logout,
         role,
         setRole,
         currentScreen,
@@ -303,6 +562,7 @@ export const AppProvider = ({ children }) => {
         farmerListings,
         addFarmerListing,
         farmerOrders,
+        updateFarmerOrderStatus,
         rewardPoints,
         redeemVoucher,
         redeemedVouchers,
@@ -331,6 +591,8 @@ export const AppProvider = ({ children }) => {
         setMessageModalVisible,
         activeChatRecipient,
         openChatWith,
+        chatMessages,
+        sendChatMessage,
         toastMessage,
         showToast,
       }}

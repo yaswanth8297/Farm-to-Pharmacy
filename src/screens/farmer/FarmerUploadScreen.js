@@ -28,10 +28,20 @@ export default function FarmerUploadScreen() {
     showToast,
   } = useApp();
 
+  // Dynamic date calculation
+  const getFormattedDate = (daysAgo = 0) => {
+    const d = new Date();
+    d.setDate(d.getDate() - daysAgo);
+    const dateFormatted = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    if (daysAgo === 0) return `Today, ${dateFormatted}`;
+    if (daysAgo === 1) return `Yesterday, ${dateFormatted}`;
+    return dateFormatted;
+  };
+
   const [selectedPlant, setSelectedPlant] = useState(INITIAL_PLANTS[0]); // Tulsi by default
   const [quantity, setQuantity] = useState('10');
   const [pricePerKg, setPricePerKg] = useState('120');
-  const [harvestDate, setHarvestDate] = useState('Today, 12 Oct 2026');
+  const [harvestDate, setHarvestDate] = useState(getFormattedDate(0));
   const [notes, setNotes] = useState('Organically grown along irrigation bunds.');
   const [photoAdded, setPhotoAdded] = useState(true);
 
@@ -231,12 +241,44 @@ export default function FarmerUploadScreen() {
 
           <View style={styles.formGroup}>
             <Text style={styles.inputLabel}>Harvest Date</Text>
+            {/* Quick date preset chips */}
+            <View style={{ flexDirection: 'row', gap: 6, marginBottom: 8 }}>
+              {['Today', 'Yesterday', '2 Days Ago'].map((label, idx) => {
+                const targetDate = getFormattedDate(idx);
+                const isSelected = harvestDate === targetDate;
+                return (
+                  <TouchableOpacity
+                    key={label}
+                    onPress={() => setHarvestDate(targetDate)}
+                    style={{
+                      paddingHorizontal: 10,
+                      paddingVertical: 5,
+                      borderRadius: 8,
+                      backgroundColor: isSelected ? COLORS.primary : '#E2E8F0',
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Set harvest date to ${label}`}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: '700',
+                        color: isSelected ? COLORS.white : COLORS.textPrimary,
+                      }}
+                    >
+                      {label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
             <TextInput
               style={styles.inputBox}
               value={harvestDate}
               onChangeText={setHarvestDate}
-              placeholder="e.g. Today, 12 Oct 2026"
+              placeholder="e.g. DD Mon YYYY"
               placeholderTextColor={COLORS.textMuted}
+              accessibilityLabel="Harvest date input"
             />
           </View>
         </View>
@@ -247,6 +289,8 @@ export default function FarmerUploadScreen() {
             style={styles.publishButton}
             onPress={handlePublish}
             activeOpacity={0.88}
+            accessibilityRole="button"
+            accessibilityLabel="Publish Listing"
           >
             <Ionicons name="cloud-upload" size={18} color={COLORS.white} />
             <Text style={styles.publishButtonText}>
@@ -258,6 +302,8 @@ export default function FarmerUploadScreen() {
             style={styles.draftButton}
             onPress={handleSaveDraft}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Save Offline Draft"
           >
             <Ionicons name="save-outline" size={16} color={COLORS.primary} />
             <Text style={styles.draftButtonText}>Save as Offline Draft</Text>

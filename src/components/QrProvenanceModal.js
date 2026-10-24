@@ -14,89 +14,44 @@ import Svg, { Rect, Path } from 'react-native-svg';
 import { COLORS, SIZES, SHADOWS } from '../constants/theme';
 import { useApp } from '../context/AppContext';
 
-// Simple lightweight SVG QR Matrix visualizer for reliable offline rendering
-function DynamicQrSvg({ value = 'FARMTOPHARMACY-BATCH', size = 160 }) {
-  // Generate deterministic pattern based on string hash
-  const modules = 21;
-  const cellSize = size / modules;
+import QRCode from 'qrcode';
 
-  const getBit = (r, c) => {
-    // Standard QR finder patterns at top-left, top-right, bottom-left
-    if (
-      (r < 7 && c < 7) ||
-      (r < 7 && c >= modules - 7) ||
-      (r >= modules - 7 && c < 7)
-    ) {
-      if (
-        (r === 0 || r === 6 || c === 0 || c === 6) &&
-        r < 7 &&
-        c < 7
-      )
-        return true;
-      if (
-        (r >= 2 && r <= 4 && c >= 2 && c <= 4) &&
-        r < 7 &&
-        c < 7
-      )
-        return true;
-      if (
-        (r === 0 || r === 6 || c === modules - 7 || c === modules - 1) &&
-        r < 7 &&
-        c >= modules - 7
-      )
-        return true;
-      if (
-        (r >= 2 && r <= 4 && c >= modules - 5 && c <= modules - 3) &&
-        r < 7 &&
-        c >= modules - 7
-      )
-        return true;
-      if (
-        (r === modules - 7 || r === modules - 1 || c === 0 || c === 6) &&
-        r >= modules - 7 &&
-        c < 7
-      )
-        return true;
-      if (
-        (r >= modules - 5 && r <= modules - 3 && c >= 2 && c <= 4) &&
-        r >= modules - 7 &&
-        c < 7
-      )
-        return true;
-      return false;
-    }
-    // Timing patterns
-    if (r === 6 || c === 6) {
-      return (r + c) % 2 === 0;
-    }
-    // Content hash distribution
-    const hash = (r * 31 + c * 17 + value.charCodeAt((r + c) % value.length)) % 7;
-    return hash < 3;
-  };
+// Standards-based QR code matrix generator using pure JavaScript
+function DynamicQrSvg({ value = 'https://herblink.vercel.app', size = 160 }) {
+  let cells = [];
+  let moduleCount = 25;
 
-  const rects = [];
-  for (let r = 0; r < modules; r++) {
-    for (let c = 0; c < modules; c++) {
-      if (getBit(r, c)) {
-        rects.push(
-          <Rect
-            key={`${r}-${c}`}
-            x={c * cellSize}
-            y={r * cellSize}
-            width={cellSize}
-            height={cellSize}
-            fill="#1E293B"
-          />
-        );
+  try {
+    const qr = QRCode.create(value, { errorCorrectionLevel: 'M' });
+    moduleCount = qr.modules.size;
+    const data = qr.modules.data;
+    for (let r = 0; r < moduleCount; r++) {
+      for (let c = 0; c < moduleCount; c++) {
+        if (data[r * moduleCount + c]) {
+          cells.push({ r, c });
+        }
       }
     }
+  } catch (e) {
+    console.warn('QR code generation error', e);
   }
+
+  const cellSize = size / moduleCount;
 
   return (
     <View style={styles.qrContainer}>
       <Svg width={size} height={size}>
         <Rect width={size} height={size} fill="#FFFFFF" />
-        {rects}
+        {cells.map((m) => (
+          <Rect
+            key={`${m.r}-${m.c}`}
+            x={m.c * cellSize}
+            y={m.r * cellSize}
+            width={cellSize}
+            height={cellSize}
+            fill="#0F172A"
+          />
+        ))}
       </Svg>
     </View>
   );
@@ -117,10 +72,12 @@ export default function QrProvenanceModal() {
     batch.batchHash ||
     'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
 
+  const qrPayload = `https://herblink.vercel.app/verify?batch=${batch.batchCode || 'BATCH-2026'}&hash=${hash.substring(0, 16)}`;
+
   const handleShare = async () => {
     try {
       await Share.share({
-        message: `🌿 Farm To Pharmacy Provenance Certificate\nBatch: ${batch.batchCode || 'BATCH-2026'}\nPlant: ${batch.name}\nOrigin: ${batch.farmerLocation || 'Pune, MH'}\nHash: ${hash.substring(0, 16)}...\nVerified AYUSH Traceable Batch.`,
+        message: `🌿 HerbLink Provenance Certificate\nBatch: ${batch.batchCode || 'BATCH-2026'}\nPlant: ${batch.name}\nOrigin: ${batch.farmerLocation || 'Pune, MH'}\nVerification Link: ${qrPayload}\nVerified AYUSH Traceable Batch.`,
       });
     } catch (e) {
       showToast('Shared batch certificate');
@@ -145,19 +102,53 @@ export default function QrProvenanceModal() {
             <TouchableOpacity
               onPress={() => setProvenanceModalVisible(false)}
               style={styles.closeButton}
+              accessibilityRole="button"
+              accessibilityLabel="Close QR modal"
             >
               <Ionicons name="close" size={20} color={COLORS.textSecondary} />
             </TouchableOpacity>
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-            {/* Dynamic QR Code */}
+            {/* Real Dynamic QR Code */}
             <View style={styles.qrWrapper}>
-              <DynamicQrSvg value={batch.batchCode || batch.name || 'FARMTOPHARMACY'} size={150} />
+              <DynamicQrSvg value={qrPayload} size={150} />
               <Text style={styles.qrLabelCode}>{batch.batchCode || 'BATCH-TLS-2026-089'}</Text>
               <View style={styles.verifiedChip}>
                 <Ionicons name="shield-checkmark" size={13} color="#227A45" />
-                <Text style={styles.verifiedChipText}>Digitally Signed & Tamper-Proof</Text>
+                <Text style={styles.verifiedChipText}>Scannable by any Camera App</Text>
+              </View>
+            </View>
+
+            {/* Batch Journey Timeline */}
+            <View style={[styles.auditSection, { marginBottom: 14 }]}>
+              <Text style={styles.sectionHeader}>Farm-to-Dock Journey Timeline</Text>
+              <View style={{ gap: 8, marginTop: 4 }}>
+                {[
+                  { title: 'Harvest Completed', sub: `${batch.harvestDate || 'Today, 06:30 AM'} · Farmstead Pune`, icon: 'leaf', done: true },
+                  { title: 'Quality & Moisture Inspected', sub: `Moisture: ${batch.moistureContent || '8.2%'} · AYUSH Grade A`, icon: 'checkmark-circle', done: true },
+                  { title: 'Bag Sealed & QR Affixed', sub: 'Tamper-evident barcode tagged', icon: 'barcode', done: true },
+                  { title: 'Cold-Chain Transit', sub: 'In transit to Central Pharmaceutical Dock', icon: 'airplane', done: false },
+                ].map((step, sIdx) => (
+                  <View key={sIdx} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <Ionicons
+                      name={step.icon}
+                      size={16}
+                      color={step.done ? '#166534' : COLORS.textMuted}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: COLORS.textPrimary }}>
+                        {step.title}
+                      </Text>
+                      <Text style={{ fontSize: 10, color: COLORS.textSecondary }}>
+                        {step.sub}
+                      </Text>
+                    </View>
+                    <Text style={{ fontSize: 10, fontWeight: '700', color: step.done ? '#166534' : COLORS.textMuted }}>
+                      {step.done ? '✓ Verified' : '● Next Step'}
+                    </Text>
+                  </View>
+                ))}
               </View>
             </View>
 
@@ -239,10 +230,13 @@ export default function QrProvenanceModal() {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
     justifyContent: 'flex-end',
+    alignItems: 'center',
   },
   modalCard: {
+    width: '100%',
+    maxWidth: 440,
     backgroundColor: COLORS.white,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
@@ -250,6 +244,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 28,
     maxHeight: '90%',
+    ...SHADOWS.raised,
   },
   header: {
     flexDirection: 'row',
