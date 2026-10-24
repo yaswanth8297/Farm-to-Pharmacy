@@ -122,12 +122,15 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     overflow: 'hidden',
     marginBottom: 16,
+    backgroundColor: COLORS.white,
+    justifyContent: 'center',
+    alignItems: 'center',
     ...SHADOWS.raised,
   },
   logoImg: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
+    width: 54,
+    height: 54,
+    resizeMode: 'contain',
   },
   appTitle: {
     fontSize: 24,

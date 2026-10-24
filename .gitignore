@@ -11,6 +11,10 @@ web-build/
 .idea/
 expo-env.d.ts
 
+# Static Assets (Ensure images and icons are tracked)
+!assets/
+!assets/**
+
 # Native
 .kotlin/
 *.orig.*

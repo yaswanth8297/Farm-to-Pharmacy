@@ -256,12 +256,14 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: 12,
     backgroundColor: COLORS.white,
+    justifyContent: 'center',
+    alignItems: 'center',
     ...SHADOWS.raised,
   },
   logoImg: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
+    width: 58,
+    height: 58,
+    resizeMode: 'contain',
   },
   appTitle: {
     fontSize: 24,

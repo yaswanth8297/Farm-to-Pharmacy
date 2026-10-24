@@ -1,11 +1,36 @@
-import React from 'react';
-import { View, StyleSheet, SafeAreaView, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, SafeAreaView, Platform, ActivityIndicator } from 'react-native';
+import * as Font from 'expo-font';
+import { Ionicons } from '@expo/vector-icons';
 import { AppProvider, useApp } from './src/context/AppContext';
 import { COLORS } from './src/constants/theme';
 import BottomTabBar from './src/components/BottomTabBar';
 import QrProvenanceModal from './src/components/QrProvenanceModal';
 import MessageModal from './src/components/MessageModal';
 import Toast from './src/components/Toast';
+
+// Direct web @font-face injection to guarantee Ionicons are visible on web builds
+if (Platform.OS === 'web' && typeof document !== 'undefined') {
+  try {
+    const iconFont = require('@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf');
+    const actualUri = typeof iconFont === 'object' && iconFont?.uri ? iconFont.uri : iconFont;
+    const styleId = 'expo-vector-icons-web-fonts';
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement('style');
+      style.id = styleId;
+      style.textContent = `
+        @font-face {
+          font-family: 'Ionicons';
+          src: url('${actualUri}') format('truetype');
+          font-display: block;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  } catch (e) {
+    console.warn('Web icon font injection warning:', e);
+  }
+}
 
 // Screens
 import LoginScreen from './src/screens/LoginScreen';
@@ -123,6 +148,29 @@ function AppContent() {
 }
 
 export default function App() {
+  const [fontsLoaded, setFontsLoaded] = useState(false);
+
+  useEffect(() => {
+    async function loadFontsAsync() {
+      try {
+        await Font.loadAsync(Ionicons.font);
+      } catch (err) {
+        console.warn('Font preload notice:', err);
+      } finally {
+        setFontsLoaded(true);
+      }
+    }
+    loadFontsAsync();
+  }, []);
+
+  if (!fontsLoaded) {
+    return (
+      <View style={[styles.safeArea, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    );
+  }
+
   return (
     <AppProvider>
       <AppContent />
