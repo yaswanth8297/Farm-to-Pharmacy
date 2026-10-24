@@ -165,6 +165,34 @@ export const AppProvider = ({ children }) => {
     return { ok: true };
   };
 
+  // Register handler
+  const register = async ({ name, email, phone, password, role, additionalInfo = {} }) => {
+    await new Promise((resolve) => setTimeout(resolve, 500)); // Mimic API network latency
+    const normalizedEmail = String(email).trim().toLowerCase();
+
+    const newUser = {
+      id: 'usr_' + Date.now().toString(36),
+      name: name.trim(),
+      email: normalizedEmail,
+      phone: phone ? phone.trim() : '+91 98765 43210',
+      role: role, // 'farmer' or 'buyer'
+      location: additionalInfo.location || (role === 'farmer' ? 'Pune, Maharashtra' : 'Mumbai, Maharashtra'),
+      company: additionalInfo.company || (role === 'buyer' ? (name.trim().includes('Pharm') ? name.trim() : name.trim() + ' Ayurvedic Labs') : undefined),
+      farmAcreage: additionalInfo.farmAcreage || (role === 'farmer' ? '5 Acres' : undefined),
+      ayushLicense: additionalInfo.ayushLicense || (role === 'buyer' ? 'AYUSH-MH-2026-9921' : undefined),
+      gstin: additionalInfo.gstin || (role === 'buyer' ? '27AABCU9603R1ZX' : undefined),
+      verified: true,
+      registeredAt: new Date().toISOString(),
+    };
+
+    setUser(newUser);
+    setRole(role);
+    setCurrentScreen('home');
+    await StorageService.setItem(StorageService.STORAGE_KEYS.SESSION, newUser);
+    showToast(`Account registered! Welcome, ${newUser.name}`);
+    return { ok: true, user: newUser };
+  };
+
   // Logout handler
   const logout = async () => {
     setUser(null);
@@ -551,6 +579,7 @@ export const AppProvider = ({ children }) => {
         user,
         authReady,
         login,
+        register,
         logout,
         role,
         setRole,

@@ -18,7 +18,7 @@ import { DEMO_ACCOUNTS, DEFAULT_ACCOUNT } from '../constants/demoAccounts';
 import AndroidStatusBar from '../components/AndroidStatusBar';
 
 export default function LoginScreen() {
-  const { login } = useApp();
+  const { login, setCurrentScreen } = useApp();
 
   // Default login details pre-filled for easy demo presentation
   const [email, setEmail] = useState(DEFAULT_ACCOUNT.email);
@@ -164,6 +164,18 @@ export default function LoginScreen() {
               </View>
             )}
           </TouchableOpacity>
+
+          {/* New User Registration Link */}
+          <View style={styles.registerPromptRow}>
+            <Text style={styles.registerPromptText}>New to Farm To Pharmacy? </Text>
+            <TouchableOpacity
+              onPress={() => setCurrentScreen('register')}
+              accessibilityRole="button"
+              accessibilityLabel="Create new account"
+            >
+              <Text style={styles.registerLinkText}>Register Now</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Demo Account Quick Switcher */}
@@ -365,6 +377,24 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
     letterSpacing: 0.2,
+  },
+  registerPromptRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  registerPromptText: {
+    fontSize: 12.5,
+    color: '#64748B',
+  },
+  registerLinkText: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#15803D',
   },
   demoBox: {
     marginTop: 20,
